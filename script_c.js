@@ -3,20 +3,7 @@ $(document).ready(function () {
   /***/
 // Obtener parámetros de la URL
 const params = new URLSearchParams(window.location.search);
-
-// Leer el parámetro "numero"
-const numeroParam = params.get("numero");
-
-// Convertir a número
-const numero = Number(numeroParam);
-
-// Validar y usar
-if (!isNaN(numero)) {
-  console.log("Número recibido:", numero);
-
-  // Ejemplo de uso
-  const resultado = numero * 3;
-  console.log("Resultado:", resultado);
+console.log(params.get('numero'));
 } else {
   console.log("No se recibió un número válido en la URL");
 }
@@ -147,5 +134,6 @@ if (!isNaN(numero)) {
 
   
 });
+
 
 
