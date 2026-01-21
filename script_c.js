@@ -128,7 +128,7 @@ if (!isNaN(numero)) {
   // Ejecutar cada 1 minuto (60000 ms)
   setInterval(() => {
     $sendButton.prop('disabled', true).text('Guardando...');
-    enviarAAppWeb(historialChat);
+    //enviarAAppWeb(historialChat);
     setTimeout(() => { $sendButton.prop('disabled', false).text('Enviar'); }, 1000);
   }, 210000);  // 3.5 minutos = 3 * 60 * 1000 + 30 * 1000 = 210000 ms
 
@@ -147,4 +147,5 @@ if (!isNaN(numero)) {
 
   
 });
+
 
