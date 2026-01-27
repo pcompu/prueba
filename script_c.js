@@ -1,102 +1,138 @@
-document.addEventListener("DOMContentLoaded", () => {
-  // =========================
-  // 1. Leer número desde la URL
-  // =========================
-  const params = new URLSearchParams(window.location.search);
-  const numeroParam = params.get("numero");
-  const numero = Number(numeroParam);
 
-  // =========================
-  // 2. Referencias al DOM
-  // =========================
-  const chatHeader = document.querySelector(".chat-header");
-  const chatHistory = document.getElementById("chatHistory");
-  const messageInput = document.getElementById("messageInput");
-  const sendButton = document.getElementById("sendButton");
+$(document).ready(function () {
 
-  // =========================
-  // 3. Configuración según el número
-  // =========================
-  let nivel = 1;
+  let historialChat = [];
+  const idConversacion = generarIdConversacion(); // Crear ID de conversación
 
-  if (!isNaN(numero)) {
-    nivel = numero;
-    chatHeader.textContent = `Chat de PC – Nivel ${nivel}`;
-  } else {
-    chatHeader.textContent = "Chat de PC – Nivel por defecto";
-  }
+  const $sendButton = $('#sendButton');
+  const $messageInput = $('#messageInput');
+  const $chatHistory = $('#chatHistory');
 
-  // =========================
-  // 4. Mensaje inicial del sistema
-  // =========================
-  agregarMensaje(
-    "sistema",
-    `Bienvenido/a. Estás usando el chat en el nivel ${nivel}.`
-  );
+  $sendButton.prop('disabled', true);
+  $messageInput.prop('disabled', true);
 
-  // =========================
-  // 5. Envío de mensajes
-  // =========================
-  sendButton.addEventListener("click", enviarMensaje);
-  messageInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") {
-      enviarMensaje();
+  configInicial(); // 'async' para esperar el mensaje inicial
+
+  $messageInput.on('keypress', function (e) { if (e.which === 13) { $sendButton.click(); } });
+
+  // Generar un ID único simple
+  function generarIdConversacion() { const ahora = new Date(); return 'conv-' + ahora.getTime(); }
+
+  // Configuración inicial
+  async function configInicial() { $messageInput.prop('disabled', false).focus(); $sendButton.prop('disabled', false); }
+
+  $sendButton.on('click', async function () {
+    let message = $messageInput.val().trim();
+    if (message !== '') {
+
+      // Texto a anexar antes de enviar el prompt
+      // const textoPrevio = "[Ayuda al estudiante a descubrir la respuesta con pistas simples. No la digas directamente.] ";
+      let prompt = message;
+
+      appendMessage(`<strong>Tú:</strong> ${message}`, 'user');  $messageInput.val('');
+
+      // Deshabilitar ambos antes de la llamada
+      $messageInput.prop('disabled', true);
+      $sendButton.prop('disabled', true).text('Procesando...');
+
+      if (message.toLowerCase().includes('fin_test_2025')) { appendMessage(`¡Hasta luego! Gracias por chatear. 😊`, 'ia'); return; }
+      
+      const aiResponse = await getAIResponse(prompt);
+
+      try { appendMessage(`${aiResponse}`, 'ia'); } 
+      catch (error) { appendMessage(`Error al obtener respuesta.</strong>`, 'ia'); } 
+      finally {
+        // Habilitar ambos luego de la respuesta o error
+        $messageInput.prop('disabled', false);
+        $sendButton.prop('disabled', false).text('Enviar');
+      } historialChat.push({ usuario: message, ia: aiResponse });
     }
   });
 
-  function enviarMensaje() {
-    const texto = messageInput.value.trim();
-    if (texto === "") return;
 
-    agregarMensaje("usuario", texto);
-    messageInput.value = "";
+  function appendMessage(text, sender = 'user') {
+    const alignment = sender === 'user' ? 'text-end' : 'text-start';
+    const bgColor = sender === 'user' ? 'bg-usuario' : 'bg-ia';
 
-    // Respuesta simulada según el nivel
-    setTimeout(() => {
-      responderSegunNivel(nivel);
-    }, 500);
+    // Reemplazo \n por <br>
+    const htmlText = text.replace(/\n/g, '<br>');
+
+    const messageHTML = `<div class="chat-message my-2 p-2 rounded shadow-sm ${bgColor} ${alignment}">${htmlText}</div>`;
+    $chatHistory.append(messageHTML);
+    $chatHistory.scrollTop($chatHistory[0].scrollHeight);
   }
 
-  // =========================
-  // 6. Respuestas simuladas
-  // =========================
-  function responderSegunNivel(nivel) {
-    let respuesta;
+  const a = "sk-proj-yVGygIPvXe_uUGzWv07PXF7YtmDV2GvLaikiT-3UEdWYbhx4WKVnF4Ya4SeEr8";
+  const b = "-Krl-17SKfWqT3BlbkFJYTkNRtozyQiOsBG2gcgZOSpF0lrDffIH1r0OC5fOdSsxY72XaNAzvQKkFhUikpW7dWd8_Dl18A";
+  const cc = a + b;
 
-    switch (nivel) {
-      case 1:
-        respuesta = "Respuesta básica del sistema.";
-        break;
-      case 2:
-        respuesta = "Respuesta intermedia del sistema, con más detalle.";
-        break;
-      case 3:
-        respuesta = "Respuesta avanzada del sistema, más compleja.";
-        break;
-      default:
-        respuesta = "Respuesta genérica del sistema.";
+  const ASSISTANT_ID = "asst_cgxGBglkWpgMR9cUZCNKN5ii";
+  let threadId = null;
+
+  async function getAIResponse(prompt) { try {
+    // Crear thread si no existe
+    if (!threadId) {
+      const threadRes = await fetch("https://api.openai.com/v1/threads", {
+      method: "POST", headers: { "Authorization": `Bearer ${cc}`, "Content-Type": "application/json", "OpenAI-Beta": "assistants=v2" } });
+      const threadData = await threadRes.json();
+      threadId = threadData.id;
     }
 
-    agregarMensaje("sistema", respuesta);
-  }
+    // Enviar mensaje del usuario
+    const messageRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+    method: "POST", headers: { "Authorization": `Bearer ${cc}`, "Content-Type": "application/json", "OpenAI-Beta": "assistants=v2" },
+    body: JSON.stringify({ role: "user", content: prompt }) });
 
-  // =========================
-  // 7. Función para agregar mensajes al chat
-  // =========================
-  function agregarMensaje(tipo, texto) {
-    const mensaje = document.createElement("div");
-    mensaje.classList.add("mb-2", "p-2", "rounded");
+    // Crear run
+    const runRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs`, {
+    method: "POST", headers: { "Authorization": `Bearer ${cc}`, "Content-Type": "application/json", "OpenAI-Beta": "assistants=v2" },
+    body: JSON.stringify({ assistant_id: ASSISTANT_ID }) });
 
-    if (tipo === "usuario") {
-      mensaje.classList.add("bg-primary", "text-white", "text-end");
-    } else {
-      mensaje.classList.add("bg-light", "text-dark");
+    const runData = await runRes.json();
+    let status = "queued";
+    let runId = runData.id;
+
+    // Esperar a que finalice el run
+    while (status !== "completed" && status !== "failed") {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const statusRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}`, {
+      headers: { "Authorization": `Bearer ${cc}`, "OpenAI-Beta": "assistants=v2" } });
+      const statusData = await statusRes.json();
+      status = statusData.status;
     }
 
-    mensaje.textContent = texto;
-    chatHistory.appendChild(mensaje);
+    if (status === "failed") { return "❌ El Assistant falló al procesar el mensaje."; }
 
-    // Scroll automático al final
-    chatHistory.scrollTop = chatHistory.scrollHeight;
+    // Obtener la respuesta del assistant
+    const messagesRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+    headers: { "Authorization": `Bearer ${cc}`, "OpenAI-Beta": "assistants=v2" } });
+    const messagesData = await messagesRes.json();
+    const assistantMsg = messagesData.data.find(msg => msg.role === "assistant");
+    return assistantMsg?.content?.[0]?.text?.value || "⚠️ Sin respuesta del Assistant.";
+    } catch (err) { return "Error: " + err.message; }
   }
+
+  // Ejecutar cada 1 minuto (60000 ms)
+  setInterval(() => {
+  if (historialChat && historialChat.length > 0) {
+    //$sendButton.prop('disabled', true).text('Guardando...');
+    enviarAAppWeb(historialChat);
+    //setTimeout(() => { $sendButton.prop('disabled', false).text('Enviar'); }, 1000);
+  } }, 30000);  // 3.5 minutos 210000
+
+
+  function enviarAAppWeb(historial) {
+    if (!historial || historial.length === 0) return;
+    const historialString = JSON.stringify({ idConversacion, historial }); // Incluir ID
+
+    const url = "https://script.google.com/macros/s/AKfycbx6F7DqKUgVVvwTzSe-ViE9jOvucp-qpfidsxMy858ZHt80zQReBiayzAqeR-UK-LQ/exec?historial=" + encodeURIComponent(historialString);
+
+    fetch(url)
+    .then(response => response.text())
+    .then(result => {
+    console.log(result);
+    historialChat = []; // ✅ Reiniciar historial después de enviar
+    }).catch(error => console.error("Error:", error));
+  }
+
 });
