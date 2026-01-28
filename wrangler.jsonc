@@ -1,0 +1,13 @@
+{
+    "name": "prueba",
+    "compatibility_date": "2026-01-28",
+    "assets": { "directory": "./" },
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "eventos",
+        "database_id": "PON_AQUI_EL_DATABASE_ID"
+      }
+    ]
+  }
+  

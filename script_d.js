@@ -158,8 +158,8 @@ $(document).ready(async function () {
       $sendButton.prop('disabled', false).text('Enviar');
     }
 
-    historialCompleto.push({ usuario: message, ia: aiResponse }); // <-- Guardamos TODO
-    historialChat.push({ usuario: message, ia: aiResponse });      // <-- Historial temporal para envío a WebApp
+    historialCompleto.push({ usuario: message, ia: aiResponse, timestamp: new Date().toISOString() }); // <-- Guardamos TODO
+    historialChat.push({ usuario: message, ia: aiResponse, timestamp: new Date().toISOString() });      // <-- Historial temporal para envío a WebApp
   });
 
   // --- Guardado automático cada 30 segundos ---
@@ -167,16 +167,17 @@ $(document).ready(async function () {
     if (historialChat && historialChat.length > 0) {
       enviarAAppWeb(historialChat);
     }
-  }, 150000); // 2,5 minutos
+  }, 15000); // 2,5 minutos
 
   function enviarAAppWeb(historial) {
     if (!historial || historial.length === 0) return;
     const historialString = JSON.stringify({ idConversacion, numeroParam, historial }); // Incluir ID
 
     console.log(historialString);
-    const url = "https://script.google.com/macros/s/AKfycbx6F7DqKUgVVvwTzSe-ViE9jOvucp-qpfidsxMy858ZHt80zQReBiayzAqeR-UK-LQ/exec?historial="
+    const url = "https://script.google.com/macros/s/AKfycbwT9qfGpglnhPwzWsHfcXitOKexaWuTmeD8KsVWiNa0SA7uoTmQYpWiB9M0_VTpJeT5/exec?historial="
       + encodeURIComponent(historialString);
 
+      console.log(historialString);
     fetch(url)
       .then(response => response.text())
       .then(result => {
