@@ -1,4 +1,4 @@
-  {
+{
     "name": "prueba",
     "compatibility_date": "2026-01-28",
     "main": "src/index.js",
@@ -6,8 +6,8 @@
     "d1_databases": [
       {
         "binding": "DB",
-        "database_name": "d470de49-249a-4a9c-88a7-335b57e31b62",
-        "database_id": "TU_DATABASE_ID"
+        "database_name": "eventos",
+        "database_id": "d470de49-249a-4a9c-88a7-335b57e31b62"
       }
     ]
   }
