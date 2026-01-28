@@ -3,6 +3,10 @@ $(document).ready(async function () {
   let historialChat = [];
   let historialCompleto = [];    // <--- Nuevo: mantiene TODO el contexto para la IA
   const idConversacion = generarIdConversacion();
+  // Obtener ID de URL
+  const params = new URLSearchParams(window.location.search);
+  const numeroParam = params.get("numero");
+
 
   const $sendButton = $('#sendButton');
   const $messageInput = $('#messageInput');
@@ -167,11 +171,11 @@ $(document).ready(async function () {
 
   function enviarAAppWeb(historial) {
     if (!historial || historial.length === 0) return;
-    const historialString = JSON.stringify({ idConversacion, historial }); // Incluir ID
+    const historialString = JSON.stringify({ idConversacion, numeroParam, historial }); // Incluir ID
 
     console.log(historialString);
-    //const url = "https://script.google.com/macros/s/AKfycbx6F7DqKUgVVvwTzSe-ViE9jOvucp-qpfidsxMy858ZHt80zQReBiayzAqeR-UK-LQ/exec?historial="
-    //  + encodeURIComponent(historialString);
+    const url = "https://script.google.com/macros/s/AKfycbx6F7DqKUgVVvwTzSe-ViE9jOvucp-qpfidsxMy858ZHt80zQReBiayzAqeR-UK-LQ/exec?historial="
+      + encodeURIComponent(historialString);
 
     fetch(url)
       .then(response => response.text())
