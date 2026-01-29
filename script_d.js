@@ -1,12 +1,11 @@
 $(document).ready(async function () {
 
-  let historialChat = [];
-  let historialCompleto = [];    // <--- Nuevo: mantiene TODO el contexto para la IA
+  let historialCompleto = [];    // mantiene TODO el contexto para la IA
   const idConversacion = generarIdConversacion();
+
   // Obtener ID de URL
   const params = new URLSearchParams(window.location.search);
   const numeroParam = params.get("numero");
-
 
   const $sendButton = $('#sendButton');
   const $messageInput = $('#messageInput');
@@ -15,11 +14,12 @@ $(document).ready(async function () {
   let promptBase = "";
   let archivosContenidos = [];
 
-  const idSheets = '1IiPs77RgCNq6uXE2ezSsvVyRnu2Mk1y8gfUHcyIzaJg';
-  const apiKey = 'AIzaSyAVvMA2r0J3skLgWq2g0JX6facQN9BXsXM';
+  // Ya no se usa Google Sheets para logging
+  // const idSheets = '...';
+  // const apiKey = '...';
+
   const a = "sk-proj-R4H0-o0FzS_aAuu0pdDiysQRxXBOHmWEZELkj7-WxCTLKKJ3o-HPEYoTVD_";
   const b = "hpu1o6SAgnkwfejT3BlbkFJtWVtJc9kl-qHe5cj9nFa9vyyAxZ5Y8y_9-27Fpe9xHAfvPCjp15v6BrsOgmyNLWmEeOpQ8HxQA";
-
   const OPENAI_KEY = a + b;
 
   $sendButton.prop('disabled', true);
@@ -38,10 +38,6 @@ $(document).ready(async function () {
 
   async function inicializarChat() {
     try {
-      //const urlPrompt = `https://content-sheets.googleapis.com/v4/spreadsheets/${idSheets}/values/prompt!A1?access_token=${apiKey}&key=${apiKey}`;
-      //const resPrompt = await fetch(urlPrompt);
-      //if (!resPrompt.ok) throw new Error("No se pudo obtener el prompt");
-      //const datosPrompt = await resPrompt.json();
       const datosPrompt = "Eres Capi, un asistente IA diseñado para ser el mejor compañero de creación para niños de 11" +
         "años en plataformas de programación por bloques como Scratch. Tu personalidad es alegre, " +
         "paciente y muy divertida. Tu misión principal es guiar, no resolver. Acompañas a los niños paso a paso, haciendo que se sientan inteligentes y capaces. Para lograrlo, DEBES seguir estas reglas DE FORMA ESTRICTA: " +
@@ -75,21 +71,14 @@ $(document).ready(async function () {
         "7. Reglas de Interacción " +
         "Primer Mensaje: En tu primer saludo, sé general y amigable. NUNCA uses las palabras \"bloque\", \"código\" o \"programación\". " +
         "Idioma: Tu único idioma de respuesta es el ESPAÑOL";
+
       promptBase = datosPrompt;
       console.log("> Prompt obtenido");
-
-      //const urlArchivos = `https://content-sheets.googleapis.com/v4/spreadsheets/${idSheets}/values/archivos!B2:B?access_token=${apiKey}&key=${apiKey}`;
-      //const resArchivos = await fetch(urlArchivos);
-      //if (!resArchivos.ok) throw new Error("No se pudo obtener los archivos");
-     // const datosArchivos = await resArchivos.json();
-      //archivosContenidos = datosArchivos.values?.map(r => r[0]).filter(Boolean) || [];
-     // console.log("> Archivos obtenidos");
-
     } catch (err) {
       console.error("Error al inicializar el chat:", err);
       $messageInput.prop('disabled', true);
       $sendButton.prop('disabled', true);
-      appendMessage("❌ Error, por favor, vuelve a intentarlo.", 'ia');
+      appendMessage("Error, por favor, vuelve a intentarlo.", 'ia');
     }
   }
 
@@ -123,9 +112,32 @@ $(document).ready(async function () {
         })
       });
       const data = await response.json();
-      return data.choices?.[0]?.message?.content || "⚠️ Sin respuesta de la IA";
+      return data.choices?.[0]?.message?.content || "Sin respuesta de la IA";
     } catch (err) {
       return "Error: " + err.message;
+    }
+  }
+
+  // Nuevo: guarda una interacción (una fila) en D1 vía tu Worker (/log)
+  async function guardarInteraccionEnDB(interaccion) {
+    try {
+      await fetch("/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({
+          session_id: idConversacion,
+          ts: Date.now(),
+          batch: {
+            idConversacion,
+            numeroParam,
+            ...interaccion
+          }
+        })
+      });
+    } catch (e) {
+      console.error("Error guardando en DB:", e);
+      // si querés, acá podés implementar una cola para reintentar
     }
   }
 
@@ -138,7 +150,7 @@ $(document).ready(async function () {
     $messageInput.prop('disabled', true);
     $sendButton.prop('disabled', true).text('Procesando...');
 
-    const recentHistory = historialCompleto.slice(-8);  // Ahora tomamos del historial completo
+    const recentHistory = historialCompleto.slice(-8);
     const historialTexto = recentHistory.map(h => `Niño: ${h.usuario}\nAyudante: ${h.ia}`).join('\n');
 
     const mensajesAPI = [
@@ -158,32 +170,17 @@ $(document).ready(async function () {
       $sendButton.prop('disabled', false).text('Enviar');
     }
 
-    historialCompleto.push({ usuario: message, ia: aiResponse, timestamp: new Date().toISOString() }); // <-- Guardamos TODO
-    historialChat.push({ usuario: message, ia: aiResponse, timestamp: new Date().toISOString() });      // <-- Historial temporal para envío a WebApp
+    const tsISO = new Date().toISOString();
+
+    // para el contexto de la IA
+    historialCompleto.push({ usuario: message, ia: aiResponse, timestamp: tsISO });
+
+    // Nuevo: guardar cada interacción en la base
+    await guardarInteraccionEnDB({
+      usuario: message,
+      ia: aiResponse,
+      timestamp: tsISO
+    });
   });
-
-  // --- Guardado automático cada 30 segundos ---
-  setInterval(() => {
-    if (historialChat && historialChat.length > 0) {
-      enviarAAppWeb(historialChat);
-    }
-  }, 15000); // 2,5 minutos
-
-  function enviarAAppWeb(historial) {
-    if (!historial || historial.length === 0) return;
-    const historialString = JSON.stringify({ idConversacion, numeroParam, historial }); // Incluir ID
-
-    console.log(historialString);
-    const url = "https://script.google.com/macros/s/AKfycbwT9qfGpglnhPwzWsHfcXitOKexaWuTmeD8KsVWiNa0SA7uoTmQYpWiB9M0_VTpJeT5/exec?historial="
-      + encodeURIComponent(historialString);
-
-      console.log(historialString);
-    fetch(url)
-      .then(response => response.text())
-      .then(result => {
-        console.log("> Historial enviado");
-        historialChat = []; // ✅ Reiniciar historial temporal después de enviar
-      }).catch(error => console.error("Error al enviar historial:", error));
-  }
 
 });
