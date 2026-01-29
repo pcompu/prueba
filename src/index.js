@@ -34,10 +34,11 @@ export default {
         if (!session_id) return new Response("missing session_id", { status: 400 });
   
         await env.DB.prepare(
-          "INSERT INTO events (id, session_id, ts, payload) VALUES (?, ?, ?, ?)"
+          "INSERT INTO eventos (id, session_id, timestamp, contenido) VALUES (?, ?, ?, ?)"
         )
           .bind(crypto.randomUUID(), session_id, ts, JSON.stringify(batch))
           .run();
+        
   
         return new Response(JSON.stringify({ ok: true }), {
           headers: {
